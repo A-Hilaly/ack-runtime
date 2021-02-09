@@ -54,6 +54,10 @@ type ServiceController struct {
 	// reconcilers is a map containing AWSResourceReconciler objects that are
 	// bound to the `controller-runtime.Manager` in `BindControllerManager`
 	reconcilers []acktypes.AWSResourceReconciler
+	// adoptionReconciler contains a reconciler that for the adoption process
+	// and is bound to the `controller-runtime.Manager` in
+	// `BindControllerManager`
+	adoptionReconciler acktypes.ACKReconciler
 	// log refers to the logr.Logger object handling logging for the service
 	// controller
 	log logr.Logger
@@ -118,12 +122,18 @@ func (c *ServiceController) BindControllerManager(mgr ctrlrt.Manager, cfg ackcfg
 	c.metaLock.Lock()
 	defer c.metaLock.Unlock()
 	for _, rmf := range c.rmFactories {
-		rec := NewReconciler(c, rmf, c.log, cfg, c.metrics)
+		rec := NewReconciler(rmf, c.log, cfg, c.metrics)
 		if err := rec.BindControllerManager(mgr); err != nil {
 			return err
 		}
 		c.reconcilers = append(c.reconcilers, rec)
 	}
+
+	rec := NewAdoptionReconciler(&c.rmFactories, c.log, cfg, c.metrics)
+	if err := rec.BindControllerManager(mgr); err != nil {
+		return err
+	}
+	c.adoptionReconciler = rec
 	return nil
 }
 

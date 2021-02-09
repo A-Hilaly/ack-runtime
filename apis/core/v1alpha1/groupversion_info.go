@@ -11,18 +11,20 @@
 // express or implied. See the License for the specific language governing
 // permissions and limitations under the License.
 
-package types
+package v1alpha1
 
 import (
-	ackv1alpha1 "github.com/aws-controllers-k8s/runtime/apis/core/v1alpha1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"sigs.k8s.io/controller-runtime/pkg/scheme"
 )
 
-// AWSResourceIdentifiers has methods that returns common identifying
-// information about a resource
-type AWSResourceIdentifiers interface {
-	AccountIDProvider
-	// ARN returns the AWS Resource Name for the backend AWS resource. If nil,
-	// this means the resource has not yet been created in the backend AWS
-	// service.
-	ARN() *ackv1alpha1.AWSResourceName
-}
+var (
+	// GroupVersion is the API Group Version used to register the objects
+	GroupVersion = schema.GroupVersion{Group: "services.k8s.aws", Version: "v1alpha1"}
+
+	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
+	SchemeBuilder = &scheme.Builder{GroupVersion: GroupVersion}
+
+	// AddToScheme adds the types in this group-version to the given scheme.
+	AddToScheme = SchemeBuilder.AddToScheme
+)
