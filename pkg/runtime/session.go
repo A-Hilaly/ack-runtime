@@ -16,7 +16,6 @@ package runtime
 import (
 	"fmt"
 
-	"github.com/aws/aws-controllers-k8s/pkg/version"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
 	"github.com/aws/aws-sdk-go/aws/endpoints"
@@ -29,11 +28,11 @@ import (
 
 const appName = "aws-controller-k8s"
 
-// NewSession returns a new session object. Buy default the returned session is
+// newSession returns a new session object. By default the returned session is
 // created using pod IRSA environment variables. If assumeRoleARN is not empty,
 // NewSession will call STS::AssumeRole and use the returned credentials to create
 // the session.
-func NewSession(
+func (c *ServiceController) newSession(
 	region ackv1alpha1.AWSRegion,
 	assumeRoleARN ackv1alpha1.AWSResourceName,
 	groupVersionKind schema.GroupVersionKind,
@@ -58,21 +57,24 @@ func NewSession(
 		}
 	}
 	//injecting session handler info
-	injectUserAgent(&sess.Handlers, groupVersionKind)
+	c.injectUserAgent(&sess.Handlers, groupVersionKind)
 
 	// TODO(jaypipes): Handle throttling
 	return sess, nil
 }
 
 // injectUserAgent will inject app specific user-agent into awsSDK
-func injectUserAgent(handlers *request.Handlers, groupVersionKind schema.GroupVersionKind) {
+func (c *ServiceController) injectUserAgent(
+	handlers *request.Handlers,
+	groupVersionKind schema.GroupVersionKind,
+) {
 	handlers.Build.PushFrontNamed(request.NamedHandler{
 		Name: fmt.Sprintf("%s/user-agent", appName),
 		Fn: request.MakeAddToUserAgentHandler(
 			appName,
-			groupVersionKind.Group+"-"+version.GitVersion,
-			"GitCommit/"+version.GitCommit,
-			"BuildDate/"+version.BuildDate,
+			groupVersionKind.Group+"-"+c.VersionInfo.GitVersion,
+			"GitCommit/"+c.VersionInfo.GitCommit,
+			"BuildDate/"+c.VersionInfo.BuildDate,
 			"CRDKind/"+groupVersionKind.Kind,
 			"CRDVersion/"+groupVersionKind.Version),
 	})

@@ -99,7 +99,13 @@ func TestServiceController(t *testing.T) {
 	reg := ackrt.NewRegistry()
 	reg.RegisterResourceManagerFactory(rmf)
 
-	sc := ackrt.NewServiceController("bookstore", "bookstore.services.k8s.aws")
+	vi := ackrt.VersionInfo{
+		GitCommit:  "test-commit",
+		GitVersion: "test-version",
+		BuildDate:  "now",
+	}
+
+	sc := ackrt.NewServiceController("bookstore", "bookstore.services.k8s.aws", vi)
 	require.NotNil(sc)
 
 	zapOptions := ctrlrtzap.Options{
