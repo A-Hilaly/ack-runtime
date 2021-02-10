@@ -27,7 +27,7 @@ import (
 // AWSResourceReconciler object)s and sharing watch and informer queues across
 // those controllers.
 type AWSResourceReconciler interface {
-	ACKReconciler
+	Reconciler
 	// GroupKind returns the
 	// sigs.k8s.io/apimachinery/pkg/apis/meta/v1.GroupKind containing the API
 	// group and kind reconciled by this reconciler

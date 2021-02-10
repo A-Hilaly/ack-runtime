@@ -19,14 +19,14 @@ import (
 	ctrlreconcile "sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-// ACKReconciler is responsible for reconciling the state of any single custom
+// Reconciler is responsible for reconciling the state of any single custom
 // resource within the cluster.
 //
 // The upstream controller-runtime.Manager object ends up managing MULTIPLE
 // controller-runtime.Controller objects (each containing a single
-// ACKReconciler object)s and sharing watch and informer queues across
+// Reconciler object)s and sharing watch and informer queues across
 // those controllers.
-type ACKReconciler interface {
+type Reconciler interface {
 	ctrlreconcile.Reconciler
 	// BindControllerManager sets up the AWSResourceReconciler with an instance
 	// of an upstream controller-runtime.Manager

@@ -57,7 +57,7 @@ type ServiceController struct {
 	// adoptionReconciler contains a reconciler that for the adoption process
 	// and is bound to the `controller-runtime.Manager` in
 	// `BindControllerManager`
-	adoptionReconciler acktypes.ACKReconciler
+	adoptionReconciler acktypes.Reconciler
 	// log refers to the logr.Logger object handling logging for the service
 	// controller
 	log logr.Logger

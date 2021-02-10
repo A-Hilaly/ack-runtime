@@ -15,5 +15,5 @@ package types
 
 // ACKAdoptionReconciler
 type ACKAdoptionReconciler interface {
-	ACKReconciler
+	Reconciler
 }
