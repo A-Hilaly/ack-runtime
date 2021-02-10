@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# A script that builds a single ACK service controller for an AWS service API
+# A script that builds all of the common API types
 
 set -eo pipefail
 
