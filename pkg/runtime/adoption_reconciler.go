@@ -214,8 +214,7 @@ func (r *adoptionReconciler) sync(
 	described.SetObjectMeta(*targetMeta)
 	targetDescriptor.MarkAdopted(described)
 
-	err = r.kc.Create(ctx, described.RuntimeObject())
-	if err != nil {
+	if err = r.kc.Create(ctx, described.RuntimeObject()); err != nil {
 		return err
 	}
 
@@ -223,8 +222,7 @@ func (r *adoptionReconciler) sync(
 		return err
 	}
 
-	err = r.patchAdoptedResourceStatus(ctx, desired, ackv1alpha1.AdoptionStatus_Adopted)
-	if err != nil {
+	if err = r.patchAdoptedResourceStatus(ctx, desired, ackv1alpha1.AdoptionStatus_Adopted); err != nil {
 		return err
 	}
 
@@ -424,7 +422,7 @@ func NewAdoptionReconciler(
 	log logr.Logger,
 	cfg ackcfg.Config,
 	metrics *ackmetrics.Metrics,
-) acktypes.ACKAdoptionReconciler {
+) acktypes.Reconciler {
 	return &adoptionReconciler{
 		reconciler: reconciler{
 			sc:      sc,
