@@ -55,4 +55,6 @@ type AWSResource interface {
 	RuntimeMetaObject() RuntimeMetaObject
 	// SetObjectMeta sets the ObjectMeta field for the resource
 	SetObjectMeta(meta metav1.ObjectMeta)
+	// SetARN will set the ARN field in the resource's metadata status field
+	SetARN(*ackv1alpha1.AWSResourceName)
 }
