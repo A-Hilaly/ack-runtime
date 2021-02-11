@@ -37,6 +37,7 @@ import (
 
 // reconciler describes a generic reconciler within ACK.
 type reconciler struct {
+	sc      *ServiceController
 	kc      client.Client
 	log     logr.Logger
 	cfg     ackcfg.Config
@@ -117,7 +118,10 @@ func (r *resourceReconciler) reconcile(req ctrlrt.Request) error {
 	acctID := r.getOwnerAccountID(res)
 	region := r.getRegion(res)
 	roleARN := r.getRoleARN(acctID)
-	sess, err := NewSession(region, roleARN, res.RuntimeObject().GetObjectKind().GroupVersionKind())
+	sess, err := r.sc.newSession(
+		region, roleARN,
+		res.RuntimeObject().GetObjectKind().GroupVersionKind(),
+	)
 	if err != nil {
 		return err
 	}
@@ -450,6 +454,7 @@ func (r *resourceReconciler) getRegion(
 
 // NewReconciler returns a new reconciler object that
 func NewReconciler(
+	sc *ServiceController,
 	rmf acktypes.AWSResourceManagerFactory,
 	log logr.Logger,
 	cfg ackcfg.Config,
@@ -457,9 +462,10 @@ func NewReconciler(
 ) acktypes.AWSResourceReconciler {
 	return &resourceReconciler{
 		reconciler: reconciler{
-		log:     log.WithName("ackrt"),
-		cfg:     cfg,
-		metrics: metrics,
+			sc:      sc,
+			log:     log.WithName("ackrt"),
+			cfg:     cfg,
+			metrics: metrics,
 		},
 		rmf: rmf,
 		rd:  rmf.ResourceDescriptor(),

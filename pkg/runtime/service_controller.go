@@ -122,14 +122,14 @@ func (c *ServiceController) BindControllerManager(mgr ctrlrt.Manager, cfg ackcfg
 	c.metaLock.Lock()
 	defer c.metaLock.Unlock()
 	for _, rmf := range c.rmFactories {
-		rec := NewReconciler(rmf, c.log, cfg, c.metrics)
+		rec := NewReconciler(c, rmf, c.log, cfg, c.metrics)
 		if err := rec.BindControllerManager(mgr); err != nil {
 			return err
 		}
 		c.reconcilers = append(c.reconcilers, rec)
 	}
 
-	rec := NewAdoptionReconciler(&c.rmFactories, c.log, cfg, c.metrics)
+	rec := NewAdoptionReconciler(c, c.log, cfg, c.metrics)
 	if err := rec.BindControllerManager(mgr); err != nil {
 		return err
 	}

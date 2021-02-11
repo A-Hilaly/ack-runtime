@@ -36,10 +36,7 @@ func IsAdopted(res acktypes.AWSResource) bool {
 	}
 	for k, v := range mo.GetAnnotations() {
 		if k == ackv1alpha1.AnnotationAdopted {
-			if strings.ToLower(v) == "true" {
-				return true
-			}
-			return false
+			return strings.ToLower(v) == "true"
 		}
 	}
 	return false

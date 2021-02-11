@@ -47,11 +47,6 @@ const (
 // It implements the upstream controller-runtime `Reconciler` interface.
 type adoptionReconciler struct {
 	reconciler
-
-	// rmFactories is a map of resource manager factories, keyed by the
-	// GroupKind of the resource managed by the resource manager produced by
-	// that factory
-	rmFactories *map[string]acktypes.AWSResourceManagerFactory
 }
 
 // BindControllerManager sets up the AWSResourceReconciler with an instance
@@ -101,7 +96,7 @@ func (r *adoptionReconciler) reconcile(req ctrlrt.Request) error {
 
 	gk := r.getTargetResourceGroupKind(res)
 	// Look up the rmf for the given target resource GVK
-	rmf, ok := (*r.rmFactories)[gk.String()]
+	rmf, ok := (r.sc.rmFactories)[gk.String()]
 	if !ok {
 		return ackerr.ResourceManagerFactoryNotFound
 	}
@@ -111,7 +106,10 @@ func (r *adoptionReconciler) reconcile(req ctrlrt.Request) error {
 	region := r.getRegion(res)
 	roleARN := r.getRoleARN(acctID)
 
-	sess, err := NewSession(region, roleARN, targetDescriptor.EmptyRuntimeObject().GetObjectKind().GroupVersionKind())
+	sess, err := r.sc.newSession(
+		region, roleARN,
+		targetDescriptor.EmptyRuntimeObject().GetObjectKind().GroupVersionKind(),
+	)
 	if err != nil {
 		return err
 	}
@@ -147,12 +145,13 @@ func (r *adoptionReconciler) sync(
 ) error {
 	readableResource := targetDescriptor.ResourceFromRuntimeObject(targetDescriptor.EmptyRuntimeObject())
 
+	// Set spec fields prior to reading
 	if desired.Spec.AWS.Name != nil {
 		readableResource.SetNameField(*desired.Spec.AWS.Name)
 	} else if desired.Spec.AWS.ID != nil {
 		readableResource.SetNameField(*desired.Spec.AWS.ID)
 	} else if desired.Spec.AWS.ARN != nil {
-		// TODO(nithomso): Set ARN
+		readableResource.SetARN(desired.Spec.AWS.ARN)
 	} else {
 		return fmt.Errorf("must provide at least one value for identifier")
 	}
@@ -421,17 +420,17 @@ func (r *adoptionReconciler) getRegion(
 
 // NewAdoptionReconciler returns a new adoptionReconciler object
 func NewAdoptionReconciler(
-	rmFactories *map[string]acktypes.AWSResourceManagerFactory,
+	sc *ServiceController,
 	log logr.Logger,
 	cfg ackcfg.Config,
 	metrics *ackmetrics.Metrics,
 ) acktypes.ACKAdoptionReconciler {
 	return &adoptionReconciler{
 		reconciler: reconciler{
+			sc:      sc,
 			log:     log.WithName("ackrt"),
 			cfg:     cfg,
 			metrics: metrics,
 		},
-		rmFactories: rmFactories,
 	}
 }
