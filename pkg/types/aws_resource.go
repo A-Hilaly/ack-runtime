@@ -41,8 +41,6 @@ type AWSResource interface {
 	// IsBeingDeleted returns true if the Kubernetes resource has a non-zero
 	// deletion timestamp
 	IsBeingDeleted() bool
-	// SetNameField sets the name spec field for the resource to a given value
-	SetNameField(string)
 	// RuntimeObject returns the Kubernetes apimachinery/runtime representation
 	// of the AWSResource
 	RuntimeObject() k8srt.Object
@@ -55,6 +53,7 @@ type AWSResource interface {
 	RuntimeMetaObject() RuntimeMetaObject
 	// SetObjectMeta sets the ObjectMeta field for the resource
 	SetObjectMeta(meta metav1.ObjectMeta)
-	// SetARN will set the ARN field in the resource's metadata status field
-	SetARN(*ackv1alpha1.AWSResourceName)
+	// SetIdentifiers will set the the Spec or Status field that represents the
+	// identifier for the resource.
+	SetIdentifiers(*ackv1alpha1.AWSIdentifiers) error
 }

@@ -15,7 +15,6 @@ package runtime
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
@@ -146,14 +145,8 @@ func (r *adoptionReconciler) sync(
 	readableResource := targetDescriptor.ResourceFromRuntimeObject(targetDescriptor.EmptyRuntimeObject())
 
 	// Set spec fields prior to reading
-	if desired.Spec.AWS.Name != nil {
-		readableResource.SetNameField(*desired.Spec.AWS.Name)
-	} else if desired.Spec.AWS.ID != nil {
-		readableResource.SetNameField(*desired.Spec.AWS.ID)
-	} else if desired.Spec.AWS.ARN != nil {
-		readableResource.SetARN(desired.Spec.AWS.ARN)
-	} else {
-		return fmt.Errorf("must provide at least one value for identifier")
+	if err := readableResource.SetIdentifiers(desired.Spec.AWS); err != nil {
+		return err
 	}
 
 	described, err := rm.ReadOne(ctx, readableResource)

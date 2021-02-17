@@ -30,13 +30,8 @@ func (in *AWSIdentifiers) DeepCopyInto(out *AWSIdentifiers) {
 		*out = new(AWSResourceName)
 		**out = **in
 	}
-	if in.Name != nil {
-		in, out := &in.Name, &out.Name
-		*out = new(string)
-		**out = **in
-	}
-	if in.ID != nil {
-		in, out := &in.ID, &out.ID
+	if in.NameOrID != nil {
+		in, out := &in.NameOrID, &out.NameOrID
 		*out = new(string)
 		**out = **in
 	}
