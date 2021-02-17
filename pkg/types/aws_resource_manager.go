@@ -82,4 +82,6 @@ type AWSResourceManagerFactory interface {
 		ackv1alpha1.AWSAccountID,
 		ackv1alpha1.AWSRegion,
 	) (AWSResourceManager, error)
+	// IsAdoptable returns true if the resource is able to be adopted
+	IsAdoptable() bool
 }

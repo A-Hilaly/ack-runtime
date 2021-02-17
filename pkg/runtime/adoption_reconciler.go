@@ -99,6 +99,10 @@ func (r *adoptionReconciler) reconcile(req ctrlrt.Request) error {
 	if !ok {
 		return ackerr.ResourceManagerFactoryNotFound
 	}
+	if !rmf.IsAdoptable() {
+		// TODO(RedbackThomson): Place into terminal state + condition
+		return ackerr.NotAdoptable
+	}
 
 	targetDescriptor := rmf.ResourceDescriptor()
 	acctID := r.getOwnerAccountID(res)
@@ -142,9 +146,8 @@ func (r *adoptionReconciler) sync(
 	rm acktypes.AWSResourceManager,
 	desired *ackv1alpha1.AdoptedResource,
 ) error {
+	// Create empty resource with spec/status fields set for ReadOne
 	readableResource := targetDescriptor.ResourceFromRuntimeObject(targetDescriptor.EmptyRuntimeObject())
-
-	// Set spec fields prior to reading
 	if err := readableResource.SetIdentifiers(desired.Spec.AWS); err != nil {
 		return err
 	}

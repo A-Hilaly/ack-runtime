@@ -26,6 +26,9 @@ var (
 	AdoptedResourceNotFound = fmt.Errorf("adopted resource not found")
 	// MissingNameIdentifier indicates an unexpected nil name identifier pointer
 	MissingNameIdentifier = fmt.Errorf("expected name identifier, found nil")
+	// NotAdoptable is to indicate the current resource has been explicitly
+	// flagged as not able to be adopted
+	NotAdoptable = fmt.Errorf("resource not adoptable")
 	// NotImplemented is returned when a code path isn't implemented yet
 	NotImplemented = fmt.Errorf("not implemented")
 	// NotFound is returned when an expected resource was not found
