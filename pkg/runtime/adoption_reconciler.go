@@ -97,8 +97,11 @@ func (r *adoptionReconciler) reconcile(req ctrlrt.Request) error {
 	// Look up the rmf for the given target resource GVK
 	rmf, ok := (r.sc.rmFactories)[gk.String()]
 	if !ok {
+		// TODO(RedbackThomson): Is printing necessary? Some other controller
+		// might be able to reconcile - printing would be verbose
 		return ackerr.ResourceManagerFactoryNotFound
 	}
+
 	if !rmf.IsAdoptable() {
 		// TODO(RedbackThomson): Place into terminal state + condition
 		return ackerr.NotAdoptable
@@ -131,9 +134,8 @@ func (r *adoptionReconciler) reconcile(req ctrlrt.Request) error {
 		return r.cleanup(ctx, *res)
 	}
 
-	// TODO(RedbackThomson): Should we early return here? Or what criteria would be better for stopping?
-	// Another option is to get the name and namespace of the target resource and check whether it exists
-	if r.isManaged(*res) {
+	// Determine whether the reason is in a terminal state
+	if r.isAdopted(ctx, res) {
 		return nil
 	}
 
@@ -149,12 +151,12 @@ func (r *adoptionReconciler) sync(
 	// Create empty resource with spec/status fields set for ReadOne
 	readableResource := targetDescriptor.ResourceFromRuntimeObject(targetDescriptor.EmptyRuntimeObject())
 	if err := readableResource.SetIdentifiers(desired.Spec.AWS); err != nil {
-		return err
+		return r.onError(ctx, desired, err)
 	}
 
 	described, err := rm.ReadOne(ctx, readableResource)
 	if err != nil {
-		return err
+		return r.onError(ctx, desired, err)
 	}
 
 	rmo := described.RuntimeMetaObject()
@@ -210,15 +212,16 @@ func (r *adoptionReconciler) sync(
 	described.SetObjectMeta(*targetMeta)
 	targetDescriptor.MarkAdopted(described)
 
-	if err = r.kc.Create(ctx, described.RuntimeObject()); err != nil {
-		return err
+	if err := r.kc.Create(ctx, described.RuntimeObject()); err != nil {
+		return r.onError(ctx, desired, err)
 	}
 
 	if err := r.markManaged(ctx, *desired); err != nil {
-		return err
+		return r.onError(ctx, desired, err)
 	}
 
-	if err = r.patchAdoptedResourceStatus(ctx, desired, ackv1alpha1.AdoptionStatus_Adopted); err != nil {
+	if err := r.onSuccess(ctx, desired); err != nil {
+		// Don't attempt to patch conditions again, directly return err
 		return err
 	}
 
@@ -251,14 +254,78 @@ func (r *adoptionReconciler) getAdoptedResource(
 	return ro, nil
 }
 
-// patchAdoptedResourceStatus updates the status of the adopted resource
-func (r *adoptionReconciler) patchAdoptedResourceStatus(
+// onError will patch the adopted resource with the given error and return the
+// same error back
+func (r *adoptionReconciler) onError(
 	ctx context.Context,
 	res *ackv1alpha1.AdoptedResource,
-	status ackv1alpha1.AdoptionStatus,
+	err error,
 ) error {
-	res.Status.AdoptionStatus = &status
-	return r.kc.Status().Update(ctx, res)
+	r.patchAdoptedCondition(ctx, res, err)
+	return err
+}
+
+// onSuccess will patch the adopted resource with a adopted condition and
+// return any errors that occurred while patching
+func (r *adoptionReconciler) onSuccess(
+	ctx context.Context,
+	res *ackv1alpha1.AdoptedResource,
+) error {
+	return r.patchAdoptedCondition(ctx, res, nil)
+}
+
+// patchAdoptedCondition updates the adopted condition status of the adopted resource
+func (r *adoptionReconciler) patchAdoptedCondition(
+	ctx context.Context,
+	res *ackv1alpha1.AdoptedResource,
+	err error,
+) error {
+	ko := res.DeepCopy()
+
+	// Adopted condition
+	var adoptedCondition *ackv1alpha1.Condition = nil
+	for _, condition := range ko.Status.Conditions {
+		if condition.Type == ackv1alpha1.ConditionTypeAdopted {
+			adoptedCondition = condition
+			break
+		}
+	}
+
+	if adoptedCondition == nil {
+		adoptedCondition = &ackv1alpha1.Condition{
+			Type: ackv1alpha1.ConditionTypeAdopted,
+		}
+		ko.Status.Conditions = append(ko.Status.Conditions, adoptedCondition)
+	}
+
+	var errMessage string
+	if err != nil {
+		errMessage = err.Error()
+		adoptedCondition.Status = corev1.ConditionFalse
+		adoptedCondition.Message = &errMessage
+	} else {
+		adoptedCondition.Message = nil
+		adoptedCondition.Status = corev1.ConditionTrue
+	}
+
+	return r.kc.Status().Patch(
+		ctx,
+		ko.DeepCopyObject(),
+		client.MergeFrom(res),
+	)
+}
+
+// isAdopted returns true if the AdoptedResource is in a terminal adoption state
+func (r *adoptionReconciler) isAdopted(
+	ctx context.Context,
+	res *ackv1alpha1.AdoptedResource,
+) bool {
+	for _, condition := range res.Status.Conditions {
+		if condition.Type == ackv1alpha1.ConditionTypeAdopted {
+			return condition.Status == corev1.ConditionTrue
+		}
+	}
+	return false
 }
 
 // getTargetResourceGroupKind returns the GroupKind as specified in the spec of
@@ -270,26 +337,6 @@ func (r *adoptionReconciler) getTargetResourceGroupKind(
 		Group: *res.Spec.Kubernetes.Group,
 		Kind:  *res.Spec.Kubernetes.Kind,
 	}
-}
-
-// isManaged returns true if the supplied AdoptedResource is under the management
-// of an ACK service controller.
-func (r *adoptionReconciler) isManaged(
-	res ackv1alpha1.AdoptedResource,
-) bool {
-	return containsFinalizer(res.ObjectMeta, finalizerString)
-}
-
-// Remove once https://github.com/kubernetes-sigs/controller-runtime/issues/994
-// is fixed.
-func containsFinalizer(obj metav1.ObjectMeta, finalizer string) bool {
-	f := obj.GetFinalizers()
-	for _, e := range f {
-		if e == finalizer {
-			return true
-		}
-	}
-	return false
 }
 
 // markManaged places the supplied resource under the management of ACK.

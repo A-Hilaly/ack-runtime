@@ -27,7 +27,9 @@ type AdoptedResourceSpec struct {
 
 // AdoptedResourceStatus defines the observed status of the AdoptedResource.
 type AdoptedResourceStatus struct {
-	AdoptionStatus *AdoptionStatus `json:"adoptionStatus,omitempty"`
+	// A collection of `ackv1alpha1.Condition` objects that describe the various
+	// terminal states of the adopted resource CR and its target custom resource
+	Conditions []*Condition `json:"conditions"`
 }
 
 // AdoptedResource is the schema for the AdoptedResource API.
