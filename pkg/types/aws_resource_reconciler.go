@@ -62,6 +62,7 @@ type AWSResourceReconciler interface {
 		ctx context.Context,
 		desired AWSResource,
 		latest AWSResource,
+		r AWSResourceManager,
 		err error,
 	) (ctrlrt.Result, error)
 }

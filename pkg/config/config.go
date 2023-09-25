@@ -195,15 +195,24 @@ func (cfg *Config) BindFlags() {
 	)
 }
 
+type emptyWriter struct{}
+
+func (w *emptyWriter) Write(p []byte) (n int, err error) {
+	return len(p), nil
+}
+
 // SetupLogger initializes the logger used in the service controller
 func (cfg *Config) SetupLogger() {
+	fmt.Println("Setting up loggersssssssss")
 	lvl := defaultLogLevel
 	lvl.UnmarshalText([]byte(cfg.LogLevel))
 
 	zapOptions := zap.Options{
 		Development: cfg.EnableDevelopmentLogging,
 		Level:       lvl,
-		TimeEncoder: zapcore.ISO8601TimeEncoder,
+		TimeEncoder: nil,
+		DestWriter:  &emptyWriter{},
+		DestWritter: &emptyWriter{},
 	}
 	ctrlrt.SetLogger(zap.New(zap.UseFlagOptions(&zapOptions)))
 }

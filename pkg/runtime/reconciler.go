@@ -145,6 +145,7 @@ func (r *reconciler) SecretValueFromReference(
 // Reconcile implements `controller-runtime.Reconciler` and handles reconciling
 // a CR CRUD request
 func (r *resourceReconciler) Reconcile(ctx context.Context, req ctrlrt.Request) (ctrlrt.Result, error) {
+	fmt.Println("\n\n+ MAIN R")
 	desired, err := r.getAWSResource(ctx, req)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -184,7 +185,8 @@ func (r *resourceReconciler) Reconcile(ctx context.Context, req ctrlrt.Request) 
 		return ctrlrt.Result{}, err
 	}
 	latest, err := r.reconcile(ctx, rm, desired)
-	return r.HandleReconcileError(ctx, desired, latest, err)
+	x, e := r.HandleReconcileError(ctx, desired, latest, rm, err)
+	return x, e
 }
 
 // reconcile either cleans up a deleted resource or ensures that the supplied
@@ -228,6 +230,7 @@ func (r *resourceReconciler) Sync(
 	rm acktypes.AWSResourceManager,
 	desired acktypes.AWSResource,
 ) (acktypes.AWSResource, error) {
+
 	var err error
 	rlog := ackrtlog.FromContext(ctx)
 	exit := rlog.Trace("r.Sync")
@@ -280,11 +283,13 @@ func (r *resourceReconciler) Sync(
 			return latest, err
 		}
 	}
+
 	// Attempt to late initialize the resource. If there are no fields to
 	// late initialize, this operation will be a no-op.
 	if latest, err = r.lateInitializeResource(ctx, rm, latest); err != nil {
 		return latest, err
 	}
+
 	return latest, nil
 }
 
@@ -636,6 +641,7 @@ func (r *resourceReconciler) patchResourceMetadataAndSpec(
 	desired acktypes.AWSResource,
 	latest acktypes.AWSResource,
 ) (acktypes.AWSResource, error) {
+	fmt.Println("...... patching metadata and spec")
 	var err error
 	rlog := ackrtlog.FromContext(ctx)
 	exit := rlog.Trace("r.patchResourceMetadataAndSpec")
@@ -649,17 +655,35 @@ func (r *resourceReconciler) patchResourceMetadataAndSpec(
 
 	equalMetadata, err := ackcompare.MetaV1ObjectEqual(desiredCleaned.MetaObject(), latestCleaned.MetaObject())
 	if err != nil {
+		fmt.Println("mds cmp", err)
 		return latest, err
 	}
 	if equalMetadata && !r.rd.Delta(desiredCleaned, latestCleaned).DifferentAt("Spec") {
+		fmt.Println("mds delta", err)
+		time.Sleep(1 * time.Hour)
 		rlog.Debug("no difference found between metadata and spec for desired and latest object.")
 		return latest, nil
 	}
 
 	rlog.Enter("kc.Patch (metadata + spec)")
 	lorig := latestCleaned.DeepCopy()
+
+	fmt.Println("mds......    pre mdspec patch generation: l/d", latestCleaned.MetaObject().GetGeneration(),
+		desiredCleaned.MetaObject().GetGeneration())
+
 	patch := client.MergeFrom(desiredCleaned.RuntimeObject())
+	b, _ := patch.Data(latestCleaned.RuntimeObject())
+	fmt.Println("^^mdspec patch:", string(b))
 	err = r.kc.Patch(ctx, latestCleaned.RuntimeObject(), patch)
+	bb, _ := patch.Data(latestCleaned.RuntimeObject())
+	fmt.Println("^^mdspec patch:", string(bb))
+	ll, err := rm.ReadOne(ctx, desired)
+	if err != nil {
+		fmt.Println("mdr===err", err)
+		return nil, err
+	}
+	fmt.Println("mds......    post mdspec patch generation:", ll.MetaObject().GetGeneration())
+
 	if err == nil {
 		if rlog.IsDebugEnabled() {
 			js := getPatchDocument(patch, lorig.RuntimeObject())
@@ -683,7 +707,9 @@ func (r *resourceReconciler) patchResourceStatus(
 	ctx context.Context,
 	desired acktypes.AWSResource,
 	latest acktypes.AWSResource,
+	rm acktypes.AWSResourceManager,
 ) error {
+	fmt.Println("...... patching resource status")
 	var err error
 	rlog := ackrtlog.FromContext(ctx)
 	exit := rlog.Trace("r.patchResourceStatus")
@@ -694,8 +720,17 @@ func (r *resourceReconciler) patchResourceStatus(
 	rlog.Enter("kc.Patch (status)")
 	dobj := desired.DeepCopy().RuntimeObject()
 	lobj := latest.DeepCopy().RuntimeObject()
+	fmt.Println("......    pre statuspatch generation: l/d", lobj.GetGeneration(), dobj.GetGeneration())
 	patch := client.MergeFrom(dobj)
 	err = r.kc.Status().Patch(ctx, lobj, patch)
+	b, _ := patch.Data(lobj)
+	fmt.Println("...... patch status:", string(b))
+	ll, err := rm.ReadOne(ctx, latest)
+	if err != nil {
+		return err
+	}
+	fmt.Println("......    post status patch generation:", ll.MetaObject().GetGeneration())
+
 	if err == nil {
 		if rlog.IsDebugEnabled() {
 			js := getPatchDocument(patch, lobj)
@@ -911,6 +946,7 @@ func (r *resourceReconciler) HandleReconcileError(
 	ctx context.Context,
 	desired acktypes.AWSResource,
 	latest acktypes.AWSResource,
+	rm acktypes.AWSResourceManager,
 	err error,
 ) (ctrlrt.Result, error) {
 	if ackcompare.IsNotNil(latest) {
@@ -927,7 +963,7 @@ func (r *resourceReconciler) HandleReconcileError(
 		//
 		// TODO(jaypipes): We ignore error handling here but I don't know if
 		// there is a more robust way to handle failures in the patch operation
-		_ = r.patchResourceStatus(ctx, desired, latest)
+		_ = r.patchResourceStatus(ctx, desired, latest, rm)
 	}
 	if err == nil || err == ackerr.Terminal {
 		return ctrlrt.Result{}, nil
