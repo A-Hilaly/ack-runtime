@@ -31,6 +31,7 @@ import (
 
 	ackv1alpha1 "github.com/aws-controllers-k8s/runtime/apis/core/v1alpha1"
 	ackcfg "github.com/aws-controllers-k8s/runtime/pkg/config"
+	"github.com/aws-controllers-k8s/runtime/pkg/featuregate"
 	ackmetrics "github.com/aws-controllers-k8s/runtime/pkg/metrics"
 	ackrtcache "github.com/aws-controllers-k8s/runtime/pkg/runtime/cache"
 	acktypes "github.com/aws-controllers-k8s/runtime/pkg/types"
@@ -233,7 +234,7 @@ func (c *serviceController) BindControllerManager(mgr ctrlrt.Manager, cfg ackcfg
 		}
 		// Run the caches. This will not block as the caches are run in
 		// separate goroutines.
-		cache.Run(clientSet)
+		cache.Run(clientSet, cfg.FeatureGates.IsEnabled(featuregate.CARMv2))
 		// Wait for the caches to sync
 		ctx := context.TODO()
 		synced := cache.WaitForCachesToSync(ctx)

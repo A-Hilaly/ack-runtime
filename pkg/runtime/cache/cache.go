@@ -94,14 +94,15 @@ func New(log logr.Logger, config Config) Caches {
 }
 
 // Run runs all the owned caches
-func (c Caches) Run(clientSet kubernetes.Interface) {
+func (c Caches) Run(clientSet kubernetes.Interface, carmV2Enabled bool) {
 	stopCh := make(chan struct{})
-	if c.Accounts != nil {
+
+	if carmV2Enabled && c.CARMMaps != nil {
+		c.CARMMaps.Run(ACKCARMMapV2, clientSet, stopCh)
+	} else {
 		c.Accounts.Run(ACKRoleAccountMap, clientSet, stopCh)
 	}
-	if c.CARMMaps != nil {
-		c.CARMMaps.Run(ACKCARMMapV2, clientSet, stopCh)
-	}
+
 	if c.Namespaces != nil {
 		c.Namespaces.Run(clientSet, stopCh)
 	}
